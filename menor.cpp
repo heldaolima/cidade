@@ -6,6 +6,7 @@ it may be required a list cars' positions
 #include <iostream>
 #include <stdio.h>
 #include <string>
+#include <vector>
 
 using namespace std;
 
@@ -50,10 +51,10 @@ void printM(Mapa m[][Col])
 {
     for (int i = 0; i < Lin; i++) {
         for (int j = 0; j < Col; j++) {
-            if (m[i][j].sem.existe) cout << m[i][j].sem.estado << " ";
-            else
+            // if (m[i][j].sem.existe) cout << m[i][j].sem.estado << " ";
+            // else
                 printf("%c ", m[i][j].direc);
-            // cout << m[i][j].estado << " ";
+            if (m[i][j].car.existe) cout << m[i][j].estado << " ";
         }
         printf("\n");
     }
@@ -89,24 +90,23 @@ int novo_ind(char d, int l, int c)
     return ind;
 }
 
-void avanca(Mapa m[][Col], char d, int l, int c)
+void avanca(Mapa m[][Col], char d, Carro *auxC)
 {
-    // printf("d: %c l: %d c: %d\n", d, l, c);
+    int l = auxC->x;
+    int c = auxC->y;
     
     if (m[l][c].sem.existe && (m[l][c].sem.estado == red || m[l][c].sem.estado == yellow))
         return;
 
-    Carro auxC = m[l][c].car;
-
     int ind = novo_ind(d, l, c);
-
     
     if (d == cim || d == bai) 
-        auxC.x = ind;
+        auxC->x = ind;
     else if (d == esq || d == dir)
-        auxC.y = ind;
+        auxC->y = ind;
+
     remove_carro(m, l, c);
-    inserir_carro(m, auxC);
+    inserir_carro(m, *auxC);
 }
 
 void func_sem(Semaforo *s) 
@@ -129,6 +129,14 @@ void func_sem(Semaforo *s)
     }
 }
 
+void rodar(Mapa m[][Col], vector<Carro> *carros)
+{
+    for (int i = 0; i < carros->size(); i++) {
+        Carro *c = &carros->at(i);
+        avanca(m, m[c->x][c->y].direc, c);
+    }
+}
+
 void roda(Mapa m[][Col])
 {
     int i, j;
@@ -137,31 +145,9 @@ void roda(Mapa m[][Col])
             if (m[i][j].car.existe)
             {
                 func_sem(&m[6][0].sem);
-                avanca(m, m[i][j].direc, i, j);
+                // avanca(m, m[i][j].direc, i, j);
                 return;
             }
-        }
-    }
-}
-
-void direcoes(Mapa m[][Col]) 
-{
-    int i, j;
-    for (i = 0; i < Lin; i++) {
-        for (j = 0; j < Col; j++) {
-            if (j % 3 == 0) {
-                if (j == 3 || j == 6) m[i][j].direc = cim;
-                else m[i][j].direc = bai;
-            }
-        }
-    }
-
-    for (i = 0; i < Lin; i++) {
-        for (j = 0; j < Col; j++) {
-            if (i % 2 == 0 && m[i][j].direc == '0')
-                m[i][j].direc = esq;
-            else if (i % 2 !=0 && m[i][j].direc == '0')
-                m[i][j].direc = dir;
         }
     }
 }
@@ -191,7 +177,7 @@ void desenha(Mapa m[][Col])
     
     Semaforo s; //bo testar
     s.existe = true;
-    s.estado = red;
+    s.estado = green;
     s.timeR = 4;
     s.timeG = 3;
     s.timeY = 1;
@@ -213,7 +199,7 @@ void init(Mapa m[][Col]) {
         for (int j = 0; j < Col; j++) {
             m[i][j].car.existe = m[i][j].sem.existe = false ;
             m[i][j].direc = '0';
-            m[i][j].estado = " ";
+            m[i][j].estado = "_";
             m[i][j].c = i;
             m[i][j].l = j;
         }
@@ -225,11 +211,13 @@ int main()
     Mapa teste[Lin][Col];
     init(teste);
     desenha(teste);
-    // direcoes(teste);
-    /*
-    Carro civic;
+
+    vector<Carro> carros;
+    vector<Semaforo> semaforos;
+    
+    Carro civic, monza;
     civic.existe = true;
-    civic.nome = "62";
+    civic.nome = "30";
     
     char prefe[] = {cim, esq, bai, dir};
     for (int i = 0; i < 4; i++)
@@ -238,31 +226,31 @@ int main()
     civic.x = stoi(civic.nome) / 10;
     civic.y = stoi(civic.nome) % 10;
 
-    inserir_carro(teste, civic);
-
-    Semaforo s; //bo testar
-    s.existe = true;
-    s.estado = red;
-    s.timeR = 4;
-    s.timeG = 3;
-    s.timeY = 1;
-
-    s.tempo = s.timeR;
-    s.x = 6;
-    s.y = 0;
+    monza.existe = true;
+    monza.nome = "04";
     
-    teste[s.x][s.y].sem = s;
-    */
+    for (int i = 0; i < 4; i++)
+        monza.pref[i] = prefe[i];
+
+    monza.x = stoi(monza.nome) / 10;
+    monza.y = stoi(monza.nome) % 10;
+
+
+    carros.push_back(civic);
+    carros.push_back(monza);
+    inserir_carro(teste, civic);
+    inserir_carro(teste, monza);
+
+
+
     printM(teste);
+    printf("\n");
+    for (int i = 0; i < 5; i++) {
+        rodar(teste, &carros);
+        printM(teste);
+        cout << endl;
+    }
+    cout << endl;
 
-    // roda(teste);
-
-   
-    // for (int i = 0; i < 5; i++) {
-    //     printf("i: %d ", i);
-    //     roda(teste);
-    //     printM(teste);
-    //     cout << endl;
-    // }
     return 0;
 }
