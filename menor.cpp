@@ -11,7 +11,7 @@ it may be required an anti-loop function
 
 using namespace std;
 
-#define Lin 4
+#define Lin 28
 #define Col 37
 
 #define cim 'c'
@@ -53,10 +53,13 @@ void printM(Mapa m[][Col])
     for (int i = 0; i < Lin; i++) {
         for (int j = 0; j < Col; j++) {
             if (m[i][j].sem.existe) cout << m[i][j].sem.estado << " ";
-            else cout << "* ";
+            
+            else cout << m[i][j].estado << " ";
             // else
+            // if (m[i][j].direc != '0')
                 // printf("%c ", m[i][j].direc);
-            // if (m[i][j].car.existe) cout << m[i][j].estado << " ";
+            // cout << m[i][j].estado << " ";
+            // if (m[i][j].car.existe) cout << m[i][j].estado << "";
             // else cout << "* ";
         }
         printf("\n");
@@ -66,21 +69,47 @@ void printM(Mapa m[][Col])
 void remove_carro(Mapa m[][Col], int x, int y)
 {
     m[x][y].car.existe = false;
+    m[x][y].car.nome = "";
     m[x][y].car.x = -1;
     m[x][y].car.y = -1;
-    // if (m[x][y].sem.existe) m[x][y].estado = "S";
     m[x][y].estado = " ";
 }
 
 void inserir_carro(Mapa m[][Col], Carro c)
 {
+    int l = c.x, col = c.y;
+
+    if (l = 0) l = 5;
+    if (col = 0) col = 5;  
+    
     m[c.x][c.y].car = c;
     m[c.x][c.y].estado = c.nome;
+}
+
+
+bool pode_avancar(Mapa m[][Col], char pref, int l, int c, int ind)
+{
+    // printf("l: %d c: %d pref: %c ind: %d\n", l, c, pref, ind);
+    // cout << "rua: " << m[l][c].direc;
+    if (pref == cim || pref == bai)
+    {
+        // cout << " Nova: " << m[ind][c].direc << endl;
+        if (m[ind][c].estado == " " && m[ind][c].direc == pref) return true;
+        else return false;
+    }
+    else if (pref == dir || pref == esq)
+    {
+        // cout << " Nova: " << m[l][ind].direc << endl;
+        if (m[l][ind].direc == pref && m[l][ind].estado == " ") return true;
+        else return false;
+    }
+    return false;
 }
 
 int novo_ind(char d, int l, int c)
 {
     int ind;
+
     if (d == cim)
         ind = (((l-1) % Lin) + Lin) % Lin;
     else if (d == dir)
@@ -93,20 +122,6 @@ int novo_ind(char d, int l, int c)
     return ind;
 }
 
-bool pode_avancar(Mapa m[][Col], char pref, int l, int c, int ind)
-{
-    if (pref == cim || pref == bai)
-    {
-        if (m[ind][c].estado == " " && m[ind][c].direc != '0') return true;
-        else return false;
-    }
-    else // pref == dir || pref == esq
-    {
-        if (m[l][ind].estado == " " && m[l][ind].direc != '0') return true;
-        else return false;
-    }
-}
-
 void avanca(Mapa m[][Col], char d, Carro *auxC)
 {
     int l = auxC->x;
@@ -115,24 +130,31 @@ void avanca(Mapa m[][Col], char d, Carro *auxC)
     
     if (m[l][c].sem.existe)
     {
+        // cout << "semaforo\n";
         if(m[l][c].sem.estado == red || m[l][c].sem.estado == yellow)
             return;
         
-        else { //semaforo verde -> mudar de direção segundo a lista!
+        else if (m[l][c].sem.estado == green) { //mudar de direção segundo a lista!
             for (int i = 0; i < 4 ; i++) {
+                // cout << "pref: " << auxC->pref[i] << endl;
                 ind = novo_ind(auxC->pref[i], l, c);
+                // printf("ind avanc: %d\n", ind);
+                
                 if (pode_avancar(m, auxC->pref[i], l, c, ind))
                 {
-                    if (d == cim || d == bai) 
+                    // printf("avancei\n");
+                    if (auxC->pref[i] == cim || auxC->pref[i] == bai) 
                         auxC->x = ind;
-                    else if (d == esq || d == dir)
+                    else if (auxC->pref[i] == esq || auxC->pref[i] == dir)
                         auxC->y = ind;
 
+                    // printf("%d %d\n", auxC->x, auxC->y);
                     remove_carro(m, l, c);
                     inserir_carro(m, *auxC);
                     return;
                 }
             }
+            return;
         }
     }
     else {
@@ -144,7 +166,9 @@ void avanca(Mapa m[][Col], char d, Carro *auxC)
 
         remove_carro(m, l, c);
         inserir_carro(m, *auxC);
+        return;
     }
+    return;
 }
 
 void func_sem(Mapa m[][Col], Semaforo *s) 
@@ -182,19 +206,76 @@ void rodar(Mapa m[][Col], vector<Semaforo> *semaforos, vector<Carro> *carros)
     }
 }
 
-void roda(Mapa m[][Col])
+void preferencias(Carro *aux)
 {
-    int i, j;
-    for (i = 0; i < Lin; i++) {
-        for (j = 0; j < Col; j++) {
-            if (m[i][j].car.existe)
-            {
-                // func_sem(&m[6][0].sem);
-                // avanca(m, m[i][j].direc, i, j);
-                return;
-            }
+    char lista_1[] = {cim, esq, bai, dir};
+    char lista_2[] = {cim, dir, bai, esq};
+    char lista_3[] = {bai, esq, cim, dir};
+    char lista_4[] = {bai, dir, cim, esq};
+    char lista_5[] = {esq, bai, dir, cim};
+    char lista_6[] = {dir, bai, esq, cim};
+    char lista_7[] = {esq, cim, dir, bai};
+    char lista_8[] = {dir, bai, esq, cim};
+    char lista_9[] = {cim, esq, bai, dir};
+    char lista_0[] = {cim, dir, bai, esq};
+
+    for (int i = 0; i < 4; i++) {
+        switch (aux->y)
+        {
+            case 1:
+                aux->pref[i] = lista_1[i]; break;
+            case 2:
+                aux->pref[i] = lista_2[i]; break;
+            case 3:
+                aux->pref[i] = lista_3[i]; break;
+            case 4:
+                aux->pref[i] = lista_4[i]; break;
+            case 5:
+                aux->pref[i] = lista_5[i]; break;
+            case 6:
+                aux->pref[i] = lista_6[i]; break;
+            case 7:
+                aux->pref[i] = lista_7[i]; break;
+            case 8:
+                aux->pref[i] = lista_8[i]; break;
+            case 9:
+                aux->pref[i] = lista_9[i]; break;
+            case 0:
+                aux->pref[i] = lista_0[i]; break;
+
+            default:
+                break;
         }
     }
+}
+
+void preencher_carros(Mapa m[][Col], vector<Carro> *carros) 
+{
+    int lista_carros[] ={1,2,3,4,5,6,7,8,9,10,
+                        11,12,13,14,15,16,17,18,19,20,
+                        21,22,23,24,25,26,27,28,29,30,
+                        31,32,33,34,35,36,37,38,39,40,
+                        41,42,43,44,45,46,47,48,49,50,
+                        51,52,53,54,55,56,57,58,59,60,
+                        61,62,63,64,65,66,67,68,69,70,
+                        71,72,73,74,75,76,77,78,79,80,
+                        81,82,83,84,85,86,87,88,89,90,
+                        91,92,93,94,95,96,97,98,99,100};
+    
+    int len_l = sizeof(lista_carros) / sizeof(lista_carros[0]);
+
+    Carro aux;
+    for (int i = 0; i < len_l; i++) {
+        aux.existe = true;
+        aux.nome = to_string(lista_carros[i]);
+        aux.x = lista_carros[i] / 10;
+        aux.y = lista_carros[i] % 10;
+        preferencias(&aux); //preencher a lista de preferências
+        
+        carros->push_back(aux);
+        inserir_carro(m, aux);
+    }
+
 }
 
 void desenha(Mapa m[][Col], vector<Semaforo> *semaforos)
@@ -205,7 +286,7 @@ void desenha(Mapa m[][Col], vector<Semaforo> *semaforos)
     char dirLin[] = {esq, esq, esq, esq, dir, esq, esq, dir};
     int l_dirLin = sizeof(dirLin) / sizeof(dirLin[0]);
 
-    int i, j, cont = 0; //isso aqui já funciona pra colocar as direções das colunas
+    int i, j, cont = 0; // ruas colunas
     for (j = 4; j < Col; j+=4) {
         for (i = 0; i < Lin; i++) {
             m[i][j].direc = dirCol[cont];
@@ -213,13 +294,31 @@ void desenha(Mapa m[][Col], vector<Semaforo> *semaforos)
         cont++;
         if (cont == l_dirCol) break;
     }
-    
-    for (j = 0; j < Col; j++) {
-        if (m[3][j].direc == '0') m[3][j].direc = esq;
+
+    cont = 0;
+    for (i = 3; i < Lin; i += 3) { //ruas linhas
+        for (j = 0; j < Col; j++) {
+            if (m[i][j].direc == '0')
+                m[i][j].direc = dirLin[cont];
+        }
+        cont++;
+        if (cont == l_dirLin) break;
     }
+
+    for (i = 1; i < Lin; i += 3) { //quadras
+        for (j = 1; j < Col; j += 4) {
+            m[i][j].estado = "x";
+            m[i][j+1].estado = "x";
+            m[i][j+2].estado = "x";
+
+            m[i+1][j].estado = "x";
+            m[i+1][j+1].estado = "x";
+            m[i+1][j+2].estado = "x";
+        }
+    }
+
     //posicionando semáforos; existe um esquema para a primeira e a última linhas 
     //outro para os resto
-    
     Semaforo s; //bo testar
     s.existe = true;
     s.estado = green;
@@ -230,22 +329,32 @@ void desenha(Mapa m[][Col], vector<Semaforo> *semaforos)
     
     for (i = 0; i < Lin; i += 3) {
         for (j = 0; j < Col;j += 4) {
-            // if (i == 0 || i == Lin-1) //primeira e ultimas, quando mapa completo
             s.x = i;
             s.y = j;
-            m[i][j].sem = s;
-            semaforos->push_back(s);
+            
+            if (i == 0 || i == Lin-1)
+            {
+                if (j != 0 && j != Col-1) {
+                    m[i][j].sem = s;
+                    semaforos->push_back(s);
+                }
+            }
+            else
+            {
+                m[i][j].sem = s;
+                semaforos->push_back(s);
+            }
         }
     }
-
 }
 
-void init(Mapa m[][Col]) {
+void init(Mapa m[][Col]) 
+{
     for (int i = 0; i < Lin; i++) {
         for (int j = 0; j < Col; j++) {
             m[i][j].car.existe = m[i][j].sem.existe = false ;
             m[i][j].direc = '0';
-            m[i][j].estado = " ";
+            m[i][j].estado = "-";
             m[i][j].c = i;
             m[i][j].l = j;
         }
@@ -256,44 +365,21 @@ int main()
 {
     Mapa teste[Lin][Col];
     vector<Semaforo> semaforos;
+    
     init(teste);
     desenha(teste, &semaforos);
 
     vector<Carro> carros;
     
-    Carro civic, monza;
-    civic.existe = true;
-    civic.nome = "30";
+    // preencher_carros(teste, &carros);
+    printM(teste);
     
-    char prefe[] = {bai, esq, dir, cim};
-    for (int i = 0; i < 4; i++)
-        civic.pref[i] = prefe[i];
-
-    civic.x = stoi(civic.nome) / 10;
-    civic.y = stoi(civic.nome) % 10;
-
-    monza.existe = true;
-    monza.nome = "39";
-    
-    for (int i = 0; i < 4; i++)
-        monza.pref[i] = prefe[i];
-
-    monza.x = stoi(monza.nome) / 10;
-    monza.y = stoi(monza.nome) % 10;
-
-
-    carros.push_back(civic);
-    carros.push_back(monza);
-    inserir_carro(teste, civic);
-    inserir_carro(teste, monza);
-
-    // printM(teste);
-    printf("\n");
-    for (int i = 0; i < 5; i++) {
-        rodar(teste, &semaforos, &carros);
-        printM(teste);
-        cout << endl;
-    }
+    // printf("\n");
+    // for (int i = 0; i < 10; i++) {
+    //     rodar(teste, &semaforos, &carros);
+    //     printM(teste);
+    //     cout << endl;
+    // }
     cout << endl;
 
     return 0;
