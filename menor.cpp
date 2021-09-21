@@ -5,9 +5,10 @@ it may be required an anti-loop function
 
 
 #include <iostream>
-#include <stdio.h>
 #include <string>
 #include <vector>
+#include <chrono>
+#include <thread>
 
 using namespace std;
 
@@ -23,6 +24,8 @@ using namespace std;
 #define yellow 'y'
 #define red 'r'
 
+#define desoc "-"
+#define quarteirao "x"
 
 typedef struct {
     bool existe;
@@ -48,19 +51,23 @@ typedef struct {
     Carro car;
 }Mapa;
 
+void print_estado(Mapa m)
+{
+    if (m.estado == "100") cout << "00";
+    else cout << m.estado;
+    if (m.estado.length() == 1) cout << "  ";
+    else cout << " ";
+}
+
 void printM(Mapa m[][Col])
 {
     for (int i = 0; i < Lin; i++) {
         for (int j = 0; j < Col; j++) {
-            if (m[i][j].sem.existe) cout << m[i][j].sem.estado << " ";
+            // if (m[i][j].sem.existe) cout << m[i][j].sem.estado << " ";
+            // if (m[i][j].direc != '0') cout << m[i][j].direc << " ";
+            print_estado(m[i][j]);
+            // cout << m[i][j].direc << " ";
             
-            else cout << m[i][j].estado << " ";
-            // else
-            // if (m[i][j].direc != '0')
-                // printf("%c ", m[i][j].direc);
-            // cout << m[i][j].estado << " ";
-            // if (m[i][j].car.existe) cout << m[i][j].estado << "";
-            // else cout << "* ";
         }
         printf("\n");
     }
@@ -72,20 +79,14 @@ void remove_carro(Mapa m[][Col], int x, int y)
     m[x][y].car.nome = "";
     m[x][y].car.x = -1;
     m[x][y].car.y = -1;
-    m[x][y].estado = " ";
+    m[x][y].estado = desoc;
 }
 
 void inserir_carro(Mapa m[][Col], Carro c)
 {
-    int l = c.x, col = c.y;
-
-    if (l = 0) l = 5;
-    if (col = 0) col = 5;  
-    
     m[c.x][c.y].car = c;
     m[c.x][c.y].estado = c.nome;
 }
-
 
 bool pode_avancar(Mapa m[][Col], char pref, int l, int c, int ind)
 {
@@ -195,14 +196,35 @@ void func_sem(Mapa m[][Col], Semaforo *s)
 void rodar(Mapa m[][Col], vector<Semaforo> *semaforos, vector<Carro> *carros)
 {
     int i;
-    for (i = 0; i < semaforos->size(); i++) {
-        Semaforo *s = &semaforos->at(i);
-        func_sem(m, s);
-    }
+    // for (i = 0; i < semaforos->size(); i++)
+    //     func_sem(m, &semaforos->at(i));
 
     for (i = 0; i < carros->size(); i++) {
         Carro *c = &carros->at(i);
         avanca(m, m[c->x][c->y].direc, c);
+    }
+}
+
+void inserir_carro_first(Mapa m[][Col], Carro *c)
+{
+    int l = c->x, col = c->y;
+ 
+    if (c->nome != "100") { //o do 100 já tá certo
+        l *= 3;
+        if (col != 1)
+            col = ((col-1) * 4)+1;
+    }
+    
+    for (int j = col; j < j+2; j++) //é decisivo na coluna
+    { 
+        if (m[l][j].estado == desoc) {
+            c->x = l;
+            c->y = j;
+            // printf("Novas coordenadas: %d %d\n", l, col);
+            m[l][j].estado = c->nome;
+            m[l][j].car = *c;
+            break;
+        }
     }
 }
 
@@ -266,14 +288,23 @@ void preencher_carros(Mapa m[][Col], vector<Carro> *carros)
 
     Carro aux;
     for (int i = 0; i < len_l; i++) {
+        // printf("Inserindo carro... %d\n", lista_carros[i]);
         aux.existe = true;
         aux.nome = to_string(lista_carros[i]);
-        aux.x = lista_carros[i] / 10;
-        aux.y = lista_carros[i] % 10;
+        if (lista_carros[i] == 100) {
+            aux.x = 15;
+            aux.y = 15;
+        }
+        else {
+            aux.x = lista_carros[i] / 10;
+            if (aux.x == 0) aux.x = 5;
+            aux.y = lista_carros[i] % 10;
+            if (aux.y == 0) aux.y = 5;
+        }
         preferencias(&aux); //preencher a lista de preferências
         
+        inserir_carro_first(m, &aux); //inserir o carro na sua primeira posição no mapa
         carros->push_back(aux);
-        inserir_carro(m, aux);
     }
 
 }
@@ -371,12 +402,14 @@ int main()
 
     vector<Carro> carros;
     
-    // preencher_carros(teste, &carros);
+    preencher_carros(teste, &carros);
     printM(teste);
     
-    // printf("\n");
+    printf("\n");
     // for (int i = 0; i < 10; i++) {
     //     rodar(teste, &semaforos, &carros);
+    //     this_thread::sleep_for(chrono::nanoseconds(10));
+    //     this_thread::sleep_until(chrono::system_clock::now() + chrono::seconds(3));
     //     printM(teste);
     //     cout << endl;
     // }
