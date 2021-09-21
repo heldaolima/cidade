@@ -1,9 +1,3 @@
-/*
-it may be required a cars' positions list
-it may be required an anti-loop function
-*/
-
-
 #include <iostream>
 #include <string>
 #include <vector>
@@ -88,21 +82,31 @@ void inserir_carro(Mapa m[][Col], Carro c)
     m[c.x][c.y].estado = c.nome;
 }
 
-bool pode_avancar(Mapa m[][Col], char pref, int l, int c, int ind)
+bool pode_avancar(Mapa m[][Col], char pref, int l, int c, int ind, bool semaforo)
 {
-    // printf("l: %d c: %d pref: %c ind: %d\n", l, c, pref, ind);
-    // cout << "rua: " << m[l][c].direc;
-    if (pref == cim || pref == bai)
-    {
-        // cout << " Nova: " << m[ind][c].direc << endl;
-        if (m[ind][c].estado == " " && m[ind][c].direc == pref) return true;
-        else return false;
+    if (semaforo) {
+        if (pref == cim || pref == bai)
+        {
+            if (m[ind][c].estado == desoc && m[ind][c].direc == pref) return true;
+            else return false;
+        }
+        else if (pref == dir || pref == esq)
+        {
+            if (m[l][ind].direc == pref && m[l][ind].estado == desoc) return true;
+            else return false;
+        }
     }
-    else if (pref == dir || pref == esq)
-    {
-        // cout << " Nova: " << m[l][ind].direc << endl;
-        if (m[l][ind].direc == pref && m[l][ind].estado == " ") return true;
-        else return false;
+    else {
+        if (pref == cim || pref == bai) 
+        {
+            if (m[ind][c].estado == desoc) return true;
+            else return false;
+        }
+        else if (pref == dir || pref == esq)
+        {
+            if (m[l][ind].estado == desoc) return true;
+            else return false;
+        }
     }
     return false;
 }
@@ -124,32 +128,27 @@ int novo_ind(char d, int l, int c)
 }
 
 void avanca(Mapa m[][Col], char d, Carro *auxC)
-{
+{ 
     int l = auxC->x;
     int c = auxC->y;
     int ind;
     
     if (m[l][c].sem.existe)
     {
-        // cout << "semaforo\n";
         if(m[l][c].sem.estado == red || m[l][c].sem.estado == yellow)
             return;
         
         else if (m[l][c].sem.estado == green) { //mudar de direção segundo a lista!
             for (int i = 0; i < 4 ; i++) {
-                // cout << "pref: " << auxC->pref[i] << endl;
                 ind = novo_ind(auxC->pref[i], l, c);
-                // printf("ind avanc: %d\n", ind);
                 
-                if (pode_avancar(m, auxC->pref[i], l, c, ind))
+                if (pode_avancar(m, auxC->pref[i], l, c, ind, true))
                 {
-                    // printf("avancei\n");
                     if (auxC->pref[i] == cim || auxC->pref[i] == bai) 
                         auxC->x = ind;
                     else if (auxC->pref[i] == esq || auxC->pref[i] == dir)
                         auxC->y = ind;
 
-                    // printf("%d %d\n", auxC->x, auxC->y);
                     remove_carro(m, l, c);
                     inserir_carro(m, *auxC);
                     return;
@@ -160,14 +159,17 @@ void avanca(Mapa m[][Col], char d, Carro *auxC)
     }
     else {
         ind = novo_ind(d, l, c);
-        if (d == cim || d == bai) 
-            auxC->x = ind;
-        else if (d == esq || d == dir)
-            auxC->y = ind;
+        if (pode_avancar(m, d, l, c, ind, false))
+        {
+            if (d == cim || d == bai) 
+                auxC->x = ind;
+            else if (d == esq || d == dir)
+                auxC->y = ind;
 
-        remove_carro(m, l, c);
-        inserir_carro(m, *auxC);
-        return;
+            remove_carro(m, l, c);
+            inserir_carro(m, *auxC);
+            return;
+        }
     }
     return;
 }
@@ -220,7 +222,6 @@ void inserir_carro_first(Mapa m[][Col], Carro *c)
         if (m[l][j].estado == desoc) {
             c->x = l;
             c->y = j;
-            // printf("Novas coordenadas: %d %d\n", l, col);
             m[l][j].estado = c->nome;
             m[l][j].car = *c;
             break;
@@ -281,15 +282,16 @@ void preencher_carros(Mapa m[][Col], vector<Carro> *carros)
                         51,52,53,54,55,56,57,58,59,60,
                         61,62,63,64,65,66,67,68,69,70,
                         71,72,73,74,75,76,77,78,79,80,
-                        81,82,83,84,85,86,87,88,89,90,
-                        91,92,93,94,95,96,97,98,99,100};
+                        81,82,83,84,85,86,87,88,89};
+                        // ,90,
+                        // 91,92,93,94,95,96,97,98,99,100};
     
     int len_l = sizeof(lista_carros) / sizeof(lista_carros[0]);
 
     Carro aux;
+    aux.existe = true;
     for (int i = 0; i < len_l; i++) {
         // printf("Inserindo carro... %d\n", lista_carros[i]);
-        aux.existe = true;
         aux.nome = to_string(lista_carros[i]);
         if (lista_carros[i] == 100) {
             aux.x = 15;
@@ -308,6 +310,7 @@ void preencher_carros(Mapa m[][Col], vector<Carro> *carros)
     }
 
 }
+
 
 void desenha(Mapa m[][Col], vector<Semaforo> *semaforos)
 {
@@ -385,35 +388,75 @@ void init(Mapa m[][Col])
         for (int j = 0; j < Col; j++) {
             m[i][j].car.existe = m[i][j].sem.existe = false ;
             m[i][j].direc = '0';
-            m[i][j].estado = "-";
+            m[i][j].estado = desoc;
             m[i][j].c = i;
             m[i][j].l = j;
         }
     }
 }
 
+void print_carros(vector<Carro> carros)
+{
+    for (int i = 0; i < carros.size(); i++)
+        cout << carros[i].nome << " coord: " << carros[i].x << " " << carros[i].y << endl;
+}
+
+void espere(int sec)
+{
+    this_thread::sleep_for(chrono::nanoseconds(10));
+    this_thread::sleep_until(chrono::system_clock::now() + chrono::seconds(sec));
+}
+
+void print_listas_pref(vector<Carro> carros)
+{
+    for (int i = 0; i < carros.size(); i++) {
+        cout << carros[i].nome << ": ";
+        for (int j = 0; j < 4; j++)
+            cout << carros[i].pref[j] << " ";
+        cout << endl;
+    }
+}
+
+void print_DS(Mapa m[][Col])
+{
+    for (int i = 0; i < Lin; i++) {
+        for (int j = 0; j < Col; j++) {
+            if (m[i][j].sem.existe) cout << m[i][j].sem.estado << " ";
+            else cout << m[i][j].direc << " ";
+        }
+        cout << endl;
+    }
+}
+
+void clrscr()
+{
+    cout << "\033[2J\033[1;1H"; 
+}
+
 int main() 
 {
-    Mapa teste[Lin][Col];
+    Mapa m[Lin][Col];
     vector<Semaforo> semaforos;
     
-    init(teste);
-    desenha(teste, &semaforos);
+    init(m);
+    desenha(m, &semaforos);
 
     vector<Carro> carros;
     
-    preencher_carros(teste, &carros);
-    printM(teste);
-    
-    printf("\n");
-    // for (int i = 0; i < 10; i++) {
-    //     rodar(teste, &semaforos, &carros);
-    //     this_thread::sleep_for(chrono::nanoseconds(10));
-    //     this_thread::sleep_until(chrono::system_clock::now() + chrono::seconds(3));
-    //     printM(teste);
-    //     cout << endl;
-    // }
+    preencher_carros(m, &carros);
+    printM(m);
+    // print_DS(m);
     cout << endl;
+    for (int i = 0; i < 10; i++) {
+        rodar(m, &semaforos, &carros);
+        printM(m);
+        espere(1);
+        clrscr();
+        cout << endl;
+    }
+    cout << endl;
+    
+    // clrscr();espere(1);
 
     return 0;
 }
