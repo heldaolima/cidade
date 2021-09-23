@@ -1,9 +1,20 @@
+/*
+Considerando que agora são 10 ruas linhas e 10 ruas colunas
+
+0 1 2 3 4 5 6 7 8 9
+
+V I N I C I U S M A     LINHAS 
+e e e e d e e d e e
+
+I A D E H O L A N D     COLUNAS
+c c b c b b c c c b
+*/
+
 #include <iostream>
 #include <string>
 #include <vector>
 #include <chrono>
 #include <thread>
-
 using namespace std;
 
 #define Lin 28
@@ -53,15 +64,18 @@ void print_estado(Mapa m)
     else cout << " ";
 }
 
-void printM(Mapa m[][Col])
+void print_direc(Mapa m)
+{
+    if (m.sem.existe) cout << m.sem.estado << " ";
+    else cout << m.direc << " ";
+}
+
+void printM(Mapa m[][Col], bool direc)
 {
     for (int i = 0; i < Lin; i++) {
         for (int j = 0; j < Col; j++) {
-            // if (m[i][j].sem.existe) cout << m[i][j].sem.estado << " ";
-            // if (m[i][j].direc != '0') cout << m[i][j].direc << " ";
-            print_estado(m[i][j]);
-            // cout << m[i][j].direc << " ";
-            
+            if (direc) print_direc(m[i][j]);
+            else print_estado(m[i][j]);
         }
         printf("\n");
     }
@@ -128,7 +142,7 @@ int novo_ind(char d, int l, int c)
 }
 
 void avanca(Mapa m[][Col], char d, Carro *auxC)
-{ 
+{
     int l = auxC->x;
     int c = auxC->y;
     int ind;
@@ -198,8 +212,8 @@ void func_sem(Mapa m[][Col], Semaforo *s)
 void rodar(Mapa m[][Col], vector<Semaforo> *semaforos, vector<Carro> *carros)
 {
     int i;
-    // for (i = 0; i < semaforos->size(); i++)
-    //     func_sem(m, &semaforos->at(i));
+    for (i = 0; i < semaforos->size(); i++)
+        func_sem(m, &semaforos->at(i));
 
     for (i = 0; i < carros->size(); i++) {
         Carro *c = &carros->at(i);
@@ -282,12 +296,11 @@ void preencher_carros(Mapa m[][Col], vector<Carro> *carros)
                         51,52,53,54,55,56,57,58,59,60,
                         61,62,63,64,65,66,67,68,69,70,
                         71,72,73,74,75,76,77,78,79,80,
-                        81,82,83,84,85,86,87,88,89};
-                        // ,90,
-                        // 91,92,93,94,95,96,97,98,99,100};
+                        81,82,83,84,85,86,87,88,89,90,
+                        91,92,93,94,95,96,97,98,99,100};
     
     int len_l = sizeof(lista_carros) / sizeof(lista_carros[0]);
-
+    
     Carro aux;
     aux.existe = true;
     for (int i = 0; i < len_l; i++) {
@@ -311,17 +324,16 @@ void preencher_carros(Mapa m[][Col], vector<Carro> *carros)
 
 }
 
-
 void desenha(Mapa m[][Col], vector<Semaforo> *semaforos)
 {
-    char dirCol[] = {cim, cim, cim, cim, cim, cim, cim, bai};
+    char dirCol[] = {cim, cim, bai, cim, bai, bai, cim, cim, cim, bai};
     int l_dirCol = sizeof(dirCol) / sizeof(dirCol[0]);
 
-    char dirLin[] = {esq, esq, esq, esq, dir, esq, esq, dir};
+    char dirLin[] = {esq, esq, esq, esq, dir, esq, esq, dir, esq, esq};
     int l_dirLin = sizeof(dirLin) / sizeof(dirLin[0]);
 
     int i, j, cont = 0; // ruas colunas
-    for (j = 4; j < Col; j+=4) {
+    for (j = 0; j < Col; j+=4) {
         for (i = 0; i < Lin; i++) {
             m[i][j].direc = dirCol[cont];
         }
@@ -330,7 +342,7 @@ void desenha(Mapa m[][Col], vector<Semaforo> *semaforos)
     }
 
     cont = 0;
-    for (i = 3; i < Lin; i += 3) { //ruas linhas
+    for (i = 0; i < Lin; i += 3) { //ruas linhas
         for (j = 0; j < Col; j++) {
             if (m[i][j].direc == '0')
                 m[i][j].direc = dirLin[cont];
@@ -351,20 +363,23 @@ void desenha(Mapa m[][Col], vector<Semaforo> *semaforos)
         }
     }
 
-    //posicionando semáforos; existe um esquema para a primeira e a última linhas 
-    //outro para os resto
-    Semaforo s; //bo testar
+    //posicionando semáforos
+    Semaforo s; 
     s.existe = true;
-    s.estado = green;
-    s.timeR = 4;
+    s.timeR = 3;
     s.timeG = 3;
     s.timeY = 1;
     s.tempo = s.timeR;
-    
+    cont = 0;
     for (i = 0; i < Lin; i += 3) {
-        for (j = 0; j < Col;j += 4) {
+        for (j = 0; j < Col; j += 4) {
             s.x = i;
             s.y = j;
+            //distribuindo as cores iniciais;
+            
+            if (cont == 0) s.estado = green;
+            else if (cont == 1) s.estado = yellow;
+            else if (cont == 2) s.estado = red;
             
             if (i == 0 || i == Lin-1)
             {
@@ -378,6 +393,8 @@ void desenha(Mapa m[][Col], vector<Semaforo> *semaforos)
                 m[i][j].sem = s;
                 semaforos->push_back(s);
             }
+            cont++;
+            if (cont > 2) cont = 0;
         }
     }
 }
@@ -404,7 +421,7 @@ void print_carros(vector<Carro> carros)
 void espere(int sec)
 {
     this_thread::sleep_for(chrono::nanoseconds(10));
-    this_thread::sleep_until(chrono::system_clock::now() + chrono::seconds(sec));
+    this_thread::sleep_until(chrono::system_clock::now() + chrono::milliseconds(sec));
 }
 
 void print_listas_pref(vector<Carro> carros)
@@ -413,17 +430,6 @@ void print_listas_pref(vector<Carro> carros)
         cout << carros[i].nome << ": ";
         for (int j = 0; j < 4; j++)
             cout << carros[i].pref[j] << " ";
-        cout << endl;
-    }
-}
-
-void print_DS(Mapa m[][Col])
-{
-    for (int i = 0; i < Lin; i++) {
-        for (int j = 0; j < Col; j++) {
-            if (m[i][j].sem.existe) cout << m[i][j].sem.estado << " ";
-            else cout << m[i][j].direc << " ";
-        }
         cout << endl;
     }
 }
@@ -444,19 +450,17 @@ int main()
     vector<Carro> carros;
     
     preencher_carros(m, &carros);
-    printM(m);
-    // print_DS(m);
+    // printM(m, true);
+
     cout << endl;
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 1000; i++) {
         rodar(m, &semaforos, &carros);
-        printM(m);
-        espere(1);
+        printM(m, false);
+        espere(200);
         clrscr();
         cout << endl;
     }
     cout << endl;
     
-    // clrscr();espere(1);
-
     return 0;
 }
