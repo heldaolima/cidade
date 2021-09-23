@@ -15,23 +15,29 @@ c c b c b b c c c b
 #include <vector>
 #include <chrono>
 #include <thread>
+
 using namespace std;
 
+//tamanho da matriz
 #define Lin 28
 #define Col 37
 
+//direções
 #define cim 'c'
 #define bai 'b'
 #define esq 'e'
 #define dir 'd'
 
+//faces dos semáforos
 #define faceL 'l'
 #define faceC 'c'
 
+//cores
 #define green 'g'
 #define yellow 'y'
 #define red 'r'
 
+//estados possiveis de uma célula
 #define desoc "-"
 #define quarteirao "x"
 
@@ -58,22 +64,30 @@ typedef struct {
     string estado; // espaço -> vazia; numero -> carro; x -> quadra;
     Semaforo semL; //semaforo da linha
     Semaforo semC; //semaforo da coluna
-    Semaforo sem; //faciliatador momentaneo
     Carro car;
 }Mapa;
 
 void print_estado(Mapa m)
 {
-    if (m.estado == "100") cout << "00";
-    else cout << m.estado;
-    if (m.estado.length() == 1) cout << "  ";
-    else cout << " ";
+    if (m.semC.existe && m.semL.existe) {
+        cout << m.semL.estado << m.semC.estado << " "; //semL semC
+    }
+
+    else
+    {
+        if (m.estado == "100") cout << "00";
+        else cout << m.estado;
+        
+        if (m.estado.length() == 1) cout << "  ";
+        else cout << " ";
+    }
+    
 }
 
 void print_direc(Mapa m)
 {
-    if (m.sem.existe) cout << m.sem.estado << " ";
-    else cout << m.direc << " ";
+    if (m.semL.existe && m.semC.existe) cout << m.semL.estado << m.semC.estado << " ";
+    else cout << m.direc << "  ";
 }
 
 void print_sems(Mapa m)
@@ -89,7 +103,7 @@ void printM(Mapa m[][Col], bool direc)
         for (int j = 0; j < Col; j++) {
             // if (direc) print_direc(m[i][j]);
             // else print_estado(m[i][j]);
-            print_sems(m[i][j]);
+            print_estado(m[i][j]);
         }
         printf("\n");
     }
@@ -110,31 +124,38 @@ void inserir_carro(Mapa m[][Col], Carro c)
     m[c.x][c.y].estado = c.nome;
 }
 
-bool pode_avancar(Mapa m[][Col], char pref, int l, int c, int ind, bool semaforo)
+bool pode_avancar_semaf(Mapa m[][Col], char pref, int l, int c, int ind, Semaforo semaforo)
 {
-    if (semaforo) {
+    if (semaforo.estado == green) {
         if (pref == cim || pref == bai)
         {
             if (m[ind][c].estado == desoc && m[ind][c].direc == pref) return true;
             else return false;
         }
+        
         else if (pref == dir || pref == esq)
         {
             if (m[l][ind].direc == pref && m[l][ind].estado == desoc) return true;
             else return false;
         }
+        else return true;
     }
-    else {
-        if (pref == cim || pref == bai) 
-        {
-            if (m[ind][c].estado == desoc) return true;
-            else return false;
-        }
-        else if (pref == dir || pref == esq)
-        {
-            if (m[l][ind].estado == desoc) return true;
-            else return false;
-        }
+    
+    else
+        return false;
+}
+
+bool pode_avancar(Mapa m[][Col], char pref, int l, int c, int ind)
+{
+    if (pref == cim || pref == bai) 
+    {
+        if (m[ind][c].estado == desoc) return true;
+        else return false;
+    }
+    else if (pref == dir || pref == esq)
+    {
+        if (m[l][ind].estado == desoc) return true;
+        else return false;
     }
     return false;
 }
@@ -161,33 +182,37 @@ void avanca(Mapa m[][Col], char d, Carro *auxC)
     int c = auxC->y;
     int ind;
     
-    if (m[l][c].sem.existe)
+    if (m[l][c].semL.existe && m[l][c].semC.existe)
     {
-        if(m[l][c].sem.estado == red || m[l][c].sem.estado == yellow)
-            return;
-        
-        else if (m[l][c].sem.estado == green) { //mudar de direção segundo a lista!
-            for (int i = 0; i < 4 ; i++) {
-                ind = novo_ind(auxC->pref[i], l, c);
-                
-                if (pode_avancar(m, auxC->pref[i], l, c, ind, true))
+        for (int i = 0; i < 4 ; i++) {
+            ind = novo_ind(auxC->pref[i], l, c);
+            
+            if (auxC->pref[i] == bai || auxC->pref[i] == cim) { //c
+                if (pode_avancar_semaf(m, auxC->pref[i], l, c, ind, m[l][c].semC))
                 {
-                    if (auxC->pref[i] == cim || auxC->pref[i] == bai) 
-                        auxC->x = ind;
-                    else if (auxC->pref[i] == esq || auxC->pref[i] == dir)
-                        auxC->y = ind;
-
+                    auxC->x = ind;
                     remove_carro(m, l, c);
                     inserir_carro(m, *auxC);
                     return;
                 }
             }
-            return;
+
+            else if (auxC->pref[i] == esq || auxC->pref[i] == dir) {
+                if (pode_avancar_semaf(m, auxC->pref[i], l, c, ind, m[l][c].semL))
+                {
+                    auxC->y = ind;
+                    remove_carro(m, l, c);
+                    inserir_carro(m, *auxC);
+                    return;
+                }
+            }
         }
+        return;
     }
+
     else {
         ind = novo_ind(d, l, c);
-        if (pode_avancar(m, d, l, c, ind, false))
+        if (pode_avancar(m, d, l, c, ind))
         {
             if (d == cim || d == bai) 
                 auxC->x = ind;
@@ -230,10 +255,10 @@ void rodar(Mapa m[][Col], vector<Semaforo> *semaforos, vector<Carro> *carros)
     for (i = 0; i < semaforos->size(); i++)
         func_sem(m, &semaforos->at(i));
 
-    // for (i = 0; i < carros->size(); i++) {
-    //     Carro *c = &carros->at(i);
-    //     avanca(m, m[c->x][c->y].direc, c);
-    // }
+    for (i = 0; i < carros->size(); i++) {
+        Carro *c = &carros->at(i);
+        avanca(m, m[c->x][c->y].direc, c);
+    }
 }
 
 void inserir_carro_first(Mapa m[][Col], Carro *c)
@@ -384,12 +409,16 @@ void desenha(Mapa m[][Col], vector<Semaforo> *semaforos)
     Semaforo s1, s2, s3; 
     s1.existe = s2.existe = s3.existe = true;
     s1.timeR = s2.timeR = s3.timeR = 3;
-    s1.timeG = s2.timeG = s2.timeG = 3;
-    s1.timeY = s2.timeY = s2.timeY = 1;
-    s1.tempo = s2.tempo = s3.tempo = s1.timeG;
+    s1.timeG = s2.timeG = s3.timeG = 3;
+    s1.timeY = s2.timeY = s3.timeY = 1;
+
     s1.estado = green;
+    s1.tempo = s1.timeG;
     s2.estado = red;
+    s2.tempo = s2.timeR;
+
     s3.estado = yellow;
+    s3.tempo = s3.timeY;
 
     Semaforo s_inic[3] = {s1, s2, s3};
 
@@ -477,13 +506,14 @@ int main()
     
     preencher_carros(m, &carros);
     printM(m, true);
+    cout << endl;
 
     // cout << "Semáforos: ";
     // for (int i = 0; i < semaforos.size(); i++) 
     //     cout << "" << semaforos[i].x << " " << semaforos[i].y << " Face: " << semaforos[i].face 
     //     << " Estado: " << semaforos[i].estado << endl;
 
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 30; i++) {
         rodar(m, &semaforos, &carros);
         printM(m, false);
         espere(1000);
