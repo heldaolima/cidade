@@ -45,7 +45,7 @@ typedef struct {
     bool existe;
     string nome; //nome do carro -> pos inicial
     int x,y; //pos atual
-    char pref[4];//lista de preferencia
+    char pref[4]; //lista de preferencia
 }Carro;
 
 //verde -> amarelo -> vermelho -> verde
@@ -59,7 +59,6 @@ typedef struct {
 }Semaforo;
 
 typedef struct {
-    int l, c; //posicao atual
     char direc; //para que lado a rua vai
     string estado; // espaço -> vazia; numero -> carro; x -> quadra;
     Semaforo semL; //semaforo da linha
@@ -67,21 +66,21 @@ typedef struct {
     Carro car;
 }Mapa;
 
-void print_estado(Mapa m)
-{
-    if (m.semC.existe && m.semL.existe) {
-        cout << m.semL.estado << m.semC.estado << " "; //semL semC
-    }
 
-    else
-    {
+
+void main_print(Mapa m)
+{
+    if ((m.semC.existe && m.semL.existe) && !m.car.existe)
+        cout << m.semL.estado << m.semC.estado << " ";
+    
+    
+    else {
         if (m.estado == "100") cout << "00";
         else cout << m.estado;
-        
+
         if (m.estado.length() == 1) cout << "  ";
         else cout << " ";
     }
-    
 }
 
 void print_direc(Mapa m)
@@ -97,13 +96,14 @@ void print_sems(Mapa m)
     else cout << m.direc << "  ";
 }
 
-void printM(Mapa m[][Col], bool direc)
+void printM(Mapa m[][Col], bool def)
 {
     for (int i = 0; i < Lin; i++) {
         for (int j = 0; j < Col; j++) {
-            // if (direc) print_direc(m[i][j]);
+            // if (i == 3 && j == 16) cout << "!";
+            if (def) main_print(m[i][j]);
+            else print_direc(m[i][j]);
             // else print_estado(m[i][j]);
-            print_estado(m[i][j]);
         }
         printf("\n");
     }
@@ -122,6 +122,67 @@ void inserir_carro(Mapa m[][Col], Carro c)
 {
     m[c.x][c.y].car = c;
     m[c.x][c.y].estado = c.nome;
+}
+
+int fluxo(Mapa m[][Col], Semaforo s)
+{
+    // printf("\nsemaforo: %c %d %d\n", s.face, s.x, s.y);
+
+    int x = s.x, y = s.y, j;
+    int cont_carros = 0;
+    char direcao;
+    int comeco;
+
+    if (s.face == faceL) //semaforo da horizontal
+    {
+        if (y == 0) direcao = m[x][y+1].direc;
+        else direcao = m[x][y-1].direc; //direcao da rua linha
+        
+        if (direcao == dir) //olho para esq -> colunas--
+        {
+            if (y == 0) return cont_carros;
+            comeco = (((y-1) % Col) + Col) % Col;
+            for (j = comeco; j >= 0; j--)//(((j-1) % Col) + Col) % Col) 
+            {
+                if (m[x][j].car.existe)
+                    cont_carros++;
+            }
+        }
+        else if (direcao == esq) //olho para dir -> colunas++
+        {
+            if (y == Col-1) return cont_carros;
+
+            comeco = (((y+1) % Col) + Col) % Col;
+            for (j = comeco; j < Col; j++) {//(((j+1) % Col) + Col) % Col) {
+                if (m[x][j].car.existe)
+                    cont_carros++;
+            }
+        }
+    }
+    else
+    {
+        direcao = m[x][y].direc; //direcao da rua coluna; todo semáforo está em uma
+        // cout << "\n direcao da rua: " << direcao << endl; 
+        if (direcao == cim) //olho pra bai -> linhas++
+        {
+            if (x == Lin-1) return cont_carros;
+            comeco = (((x+1) % Lin) + Lin) % Lin;
+            for (j = comeco; j < Lin; j++){ //(((j+1) % Lin) + Lin) % Lin) {
+                if (m[j][y].car.existe)
+                    cont_carros++;
+            }
+        }
+        else if (direcao == bai) //olho pra cim
+        {
+            if (x == 0) return cont_carros;
+            comeco = (((x-1) % Lin) + Lin) % Lin;
+            for (j = comeco; j >= 0; j--){ //(((j-1) % Lin) + Lin) % Lin) {
+                if (m[j][y].car.existe)
+                    cont_carros++;
+            }
+        }
+    }
+    return cont_carros;
 }
 
 bool pode_avancar_semaf(Mapa m[][Col], char pref, int l, int c, int ind, Semaforo semaforo)
@@ -364,6 +425,16 @@ void preencher_carros(Mapa m[][Col], vector<Carro> *carros)
 
 }
 
+void listar_semaforos(Mapa m[][Col], vector<Semaforo> semaforos, bool num_carros)
+{
+    for (int i = 0; i < semaforos.size(); i++) 
+    {
+        cout << "S[" << i << "]: " << semaforos[i].face << " " << semaforos[i].x << " " << semaforos[i].y;
+        if (num_carros) cout << "  Carros: " << fluxo(m, semaforos[i]);
+        cout << endl;
+    }
+}
+
 void desenha(Mapa m[][Col], vector<Semaforo> *semaforos)
 {
     char dirCol[] = {cim, cim, bai, cim, bai, bai, cim, cim, cim, bai};
@@ -477,8 +548,6 @@ void init(Mapa m[][Col])
             m[i][j].car.existe = m[i][j].semL.existe = m[i][j].semC.existe = false ;
             m[i][j].direc = '0';
             m[i][j].estado = desoc;
-            m[i][j].c = i;
-            m[i][j].l = j;
         }
     }
 }
@@ -498,7 +567,7 @@ int main()
 {
     Mapa m[Lin][Col];
     vector<Semaforo> semaforos;
-    
+   
     init(m);
     desenha(m, &semaforos);
 
@@ -508,18 +577,19 @@ int main()
     printM(m, true);
     cout << endl;
 
-    // cout << "Semáforos: ";
-    // for (int i = 0; i < semaforos.size(); i++) 
-    //     cout << "" << semaforos[i].x << " " << semaforos[i].y << " Face: " << semaforos[i].face 
-    //     << " Estado: " << semaforos[i].estado << endl;
+    int at = 180;
+    // cout << "Fluxo no semaforo " << at << " : " << fluxo(m, semaforos[at]) << endl;
+    listar_semaforos(m, semaforos, true);
+    
+    // fluxo(m, );
 
-    for (int i = 0; i < 30; i++) {
-        rodar(m, &semaforos, &carros);
-        printM(m, false);
-        espere(1000);
-        clrscr();
-        cout << endl;
-    }
+    // for (int i = 0; i < 100; i++) {
+    //     rodar(m, &semaforos, &carros);
+    //     printM(m, false);
+    //     espere(1000);
+    //     clrscr();
+    //     cout << endl;
+    // }
     cout << endl;
     
     return 0;
